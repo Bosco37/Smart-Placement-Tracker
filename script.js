@@ -1,75 +1,102 @@
-let applications = [];
+let applications = JSON.parse(localStorage.getItem("jobApplications")) || [];
+let currentFilter = "all";
 
+window.onload = function () {
+    document.getElementById("date").valueAsDate = new Date();
+    displayApplications();
+    updateSummary();
+};
 
-if (localStorage.getItem("applications")) {
-    applications = JSON.parse(localStorage.getItem("applications"));
-}
-
-const form = document.getElementById("applicationForm");
-const list = document.getElementById("applicationList");
-
-form.addEventListener("submit", function (e) {
+document.getElementById("applicationForm").addEventListener("submit", function (e) {
     e.preventDefault();
 
-    const application = {
+    const newApp = {
+        id: Date.now(),
         company: document.getElementById("company").value,
-        role: document.getElementById("role").value,
+        position: document.getElementById("position").value,
         stage: document.getElementById("stage").value,
         result: document.getElementById("result").value,
         date: document.getElementById("date").value
     };
 
-    applications.push(application);
-    localStorage.setItem("applications", JSON.stringify(applications));
+    applications.push(newApp);
+    localStorage.setItem("jobApplications", JSON.stringify(applications));
 
-    form.reset();
+    alert("Application added successfully!");
+
+
+    this.reset();
+    document.getElementById("date").valueAsDate = new Date();
+
     displayApplications();
+    updateSummary();
 });
 
 function displayApplications() {
-    list.innerHTML = "";
 
-    applications.forEach((app, index) => {
+    const body = document.getElementById("applicationsBody");
+    const table = document.getElementById("applicationsTable");
+    const empty = document.getElementById("noApplications");
+
+    body.innerHTML = "";
+
+    let filtered = applications;
+
+    if (currentFilter !== "all") {
+        filtered = applications.filter(app =>
+            app.stage === currentFilter || app.result === currentFilter
+        );
+    }
+
+    if (filtered.length === 0) {
+        table.style.display = "none";
+        empty.style.display = "block";
+        return;
+    }
+
+    table.style.display = "table";
+    empty.style.display = "none";
+
+    filtered.forEach(app => {
         const row = document.createElement("tr");
 
         row.innerHTML = `
             <td>${app.company}</td>
-            <td>${app.role}</td>
+            <td>${app.position}</td>
             <td>${app.stage}</td>
             <td>${app.result}</td>
             <td>${app.date}</td>
-            <td><button onclick="deleteApplication(${index})">Delete</button></td>
+            <td><button class="delete-btn" onclick="deleteApplication(${app.id})">Delete</button></td>
         `;
 
-        list.appendChild(row);
+        body.appendChild(row);
     });
-
-    updateSummary();
 }
 
-function deleteApplication(index) {
-    applications.splice(index, 1);
-    localStorage.setItem("applications", JSON.stringify(applications));
-    displayApplications();
+function deleteApplication(id) {
+    if (confirm("Delete this application?")) {
+        applications = applications.filter(app => app.id !== id);
+        localStorage.setItem("jobApplications", JSON.stringify(applications));
+        displayApplications();
+        updateSummary();
+    }
 }
 
 function updateSummary() {
-    document.getElementById("total").innerText = applications.length;
-
-    let interviewCount = 0;
-    let offerCount = 0;
-    let rejectionCount = 0;
-
-    applications.forEach(app => {
-        if (app.stage === "Interview") interviewCount++;
-        if (app.stage === "Offer") offerCount++;
-        if (app.stage === "Rejected") rejectionCount++;
-    });
-
-    document.getElementById("interviews").innerText = interviewCount;
-    document.getElementById("offers").innerText = offerCount;
-    document.getElementById("rejections").innerText = rejectionCount;
+    document.getElementById("totalCount").textContent = applications.length;
+    document.getElementById("interviewCount").textContent =
+        applications.filter(app => app.stage === "Interview").length;
+    document.getElementById("offerCount").textContent =
+        applications.filter(app => app.stage === "Offer").length;
+    document.getElementById("rejectedCount").textContent =
+        applications.filter(app => app.result === "Rejected").length;
 }
 
-
-displayApplications();
+document.querySelectorAll(".filter-btn").forEach(btn => {
+    btn.addEventListener("click", function () {
+        document.querySelectorAll(".filter-btn").forEach(b => b.classList.remove("active"));
+        this.classList.add("active");
+        currentFilter = this.getAttribute("data-filter");
+        displayApplications();
+    });
+});
